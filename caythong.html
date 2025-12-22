@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Merry Christmas 3D</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #000000;
+            font-family: 'Arial', sans-serif;
+        }
+        canvas { display: block; }
+        
+        #overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: white;
+            pointer-events: none;
+            z-index: 10;
+            text-shadow: 0 0 10px rgba(255, 105, 180, 0.8), 0 0 20px rgba(255, 105, 180, 0.5);
+        }
+
+        h1 {
+            font-family: 'Brush Script MT', cursive;
+            font-size: 4rem;
+            margin: 0;
+            color: #fff;
+        }
+
+        p {
+            font-size: 1.2rem;
+            margin-top: 10px;
+            color: #ffccff;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+    <div id="overlay">
+        <h1>Merry Christmas</h1>
+        <p>Chúc em yêu giáng sinh vui vẻ</p>
+    </div>
+
+    <script>
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x000000, 0.002); // Tăng sương mù một chút để chiều sâu rõ hơn
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        // Đặt camera lùi xa và cao hơn một chút để nhìn trọn cây
+        camera.position.z = 80;
+        camera.position.y = 10;
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 1.5;
+
+        // Texture đốm sáng
+        function getTexture() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 32;
+            canvas.height = 32;
+            const context = canvas.getContext('2d');
+            const gradient = context.createRadialGradient(16, 16, 0, 16, 16, 16);
+            gradient.addColorStop(0, 'rgba(255,255,255,1)');
+            gradient.addColorStop(0.2, 'rgba(255,255,255,0.8)');
+            gradient.addColorStop(0.5, 'rgba(255,255,255,0.2)');
+            gradient.addColorStop(1, 'rgba(0,0,0,0)');
+            context.fillStyle = gradient;
+            context.fillRect(0, 0, 32, 32);
+            const texture = new THREE.Texture(canvas);
+            texture.needsUpdate = true;
+            return texture;
+        }
+        const particleTexture = getTexture();
+
+        // --- TẠO CÂY THÔNG (ĐÃ SỬA KÍCH THƯỚC) ---
+        const treeGeometry = new THREE.BufferGeometry();
+        const treeCount = 20000; 
+        const treePositions = [];
+        const treeColors = [];
+
+        const colorInside = new THREE.Color(0xff69b4);
+        const colorOutside = new THREE.Color(0xff1493);
+
+        for (let i = 0; i < treeCount; i++) {
+            // SỬA: Điều chỉnh lại thông số tọa độ để cây nhỏ gọn hơn
+            const angle = i * 0.15; 
+            const radius = i * 0.0015; // Bán kính đáy khoảng 30
+            const y = 50 - (i * 0.005); // Chiều cao từ 50 xuống -50 (Tổng cao 100)
+
+            const randomX = (Math.random() - 0.5) * 1.5;
+            const randomY = (Math.random() - 0.5) * 1.5;
+            const randomZ = (Math.random() - 0.5) * 1.5;
+
+            // X và Z không nhân 3 nữa để cây thon gọn đúng hình nón
+            const x = Math.cos(angle) * radius * 12 + randomX; 
+            const z = Math.sin(angle) * radius * 12 + randomZ;
+
+            treePositions.push(x, y + randomY, z);
+
+            const mixedColor = colorInside.clone();
+            mixedColor.lerp(colorOutside, Math.random());
+            treeColors.push(mixedColor.r, mixedColor.g, mixedColor.b);
+        }
+
+        treeGeometry.setAttribute('position', new THREE.Float32BufferAttribute(treePositions, 3));
+        treeGeometry.setAttribute('color', new THREE.Float32BufferAttribute(treeColors, 3));
+
+        const treeMaterial = new THREE.PointsMaterial({
+            size: 0.8,
+            map: particleTexture,
+            transparent: true,
+            opacity: 0.9,
+            vertexColors: true,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+
+        const tree = new THREE.Points(treeGeometry, treeMaterial);
+        scene.add(tree);
+
+        // --- NGÔI SAO ---
+        const starGeometry = new THREE.SphereGeometry(1.5, 32, 32);
+        const starMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const star = new THREE.Mesh(starGeometry, starMaterial);
+        star.position.y = 52; // Đặt ngay trên đỉnh cây (y đỉnh cây là 50)
+        scene.add(star);
+
+        const glowMaterial = new THREE.SpriteMaterial({ 
+            map: particleTexture, 
+            color: 0xff00ff, 
+            transparent: true, 
+            opacity: 0.8,
+            blending: THREE.AdditiveBlending
+        });
+        const glow = new THREE.Sprite(glowMaterial);
+        glow.scale.set(12, 12, 1);
+        star.add(glow);
+
+        // --- TUYẾT RƠI ---
+        const snowGeometry = new THREE.BufferGeometry();
+        const snowCount = 1500;
+        const snowPositions = [];
+        for(let i=0; i<snowCount; i++){
+            // Thu hẹp phạm vi tuyết lại để tập trung xung quanh cây
+            const x = (Math.random() - 0.5) * 200;
+            const y = (Math.random() - 0.5) * 200;
+            const z = (Math.random() - 0.5) * 200;
+            snowPositions.push(x, y, z);
+        }
+        snowGeometry.setAttribute('position', new THREE.Float32BufferAttribute(snowPositions, 3));
+        const snowMaterial = new THREE.PointsMaterial({
+            size: 1.2,
+            map: particleTexture,
+            transparent: true,
+            opacity: 0.6,
+            color: 0xffffff,
+            blending: THREE.AdditiveBlending,
+            depthWrite: false
+        });
+        const snow = new THREE.Points(snowGeometry, snowMaterial);
+        scene.add(snow);
+
+        // Animation
+        function animate() {
+            requestAnimationFrame(animate);
+
+            tree.rotation.y += 0.002;
+
+            const time = Date.now() * 0.005;
+            glow.scale.set(12 + Math.sin(time)*3, 12 + Math.sin(time)*3, 1);
+
+            const positions = snow.geometry.attributes.position.array;
+            for(let i = 1; i < positions.length; i += 3) {
+                positions[i] -= 0.3; 
+                if (positions[i] < -100) positions[i] = 100;
+            }
+            snow.geometry.attributes.position.needsUpdate = true;
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+    </script>
+</body>
+</html>
